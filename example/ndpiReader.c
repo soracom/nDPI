@@ -44,7 +44,9 @@
 #include <pcap.h>
 #include <signal.h>
 #include <pthread.h>
+#include <pwd.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <assert.h>
 #include <math.h>
 #include "ndpi_api.h"
@@ -4383,6 +4385,17 @@ int original_main(int argc, char **argv) {
     
     gettimeofday(&startup_time, NULL);
     memset(ndpi_thread_info, 0, sizeof(ndpi_thread_info));
+
+    // The return value may point to a static area, and may be overwritten
+    // by subsequent calls to getpwent(3), getpwnam(), or getpwuid().  (Do
+    // not pass the returned pointer to free(3).)
+    struct passwd *nobody_passwd = getpwnam("nobody");
+    const uid_t nobody_uid = nobody_passwd->pw_uid;
+    // Set uid to nobody here.
+    if (setuid(nobody_uid) != 0)  {
+      fprintf(stderr, "could not set uid to %d\n", nobody_uid);
+      exit(-1);
+    }
 
   if(getenv("AHO_DEBUG"))
 	  ac_automata_enable_debug(1);
